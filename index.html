@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A/B-гипотеза — проверка по правилам курса</title>
+<style>
+:root{
+  --bg:#0f172a; --card:#ffffff; --text:#1e293b; --muted:#64748b;
+  --accent:#2563eb; --accent-soft:#dbeafe;
+  --good:#16a34a; --good-soft:#dcfce7;
+  --warn:#d97706; --warn-soft:#fef3c7;
+  --bad:#dc2626; --bad-soft:#fee2e2;
+  --info:#0e7490; --info-soft:#cffafe;
+  --border:#e2e8f0;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px; line-height:1.5; padding:32px 16px 48px;
+}
+.wrap{max-width:1240px;margin:0 auto}
+header{margin-bottom:22px}
+header h1{color:#fff;font-size:30px;font-weight:700;margin-bottom:6px}
+header .sub{color:#94a3b8;font-size:15px;max-width:820px}
+details.rules{margin-top:14px;max-width:820px}
+details.rules summary{
+  color:#93c5fd;cursor:pointer;font-size:14px;font-weight:600;user-select:none;
+}
+details.rules[open] summary{margin-bottom:8px}
+details.rules .rules-body{
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  border-radius:10px; padding:14px 18px; color:#cbd5e1; font-size:14px;
+}
+details.rules .rules-body b{color:#fff}
+details.rules .rules-body p{margin-bottom:8px}
+details.rules .rules-body p:last-child{margin-bottom:0}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:1000px){.grid{grid-template-columns:1fr}}
+.card{
+  background:var(--card); border-radius:12px; padding:24px 26px;
+  box-shadow:0 10px 40px rgba(0,0,0,.4);
+}
+.card h2{font-size:19px;font-weight:700;margin-bottom:4px}
+.card .lead{color:var(--muted);font-size:14px;margin-bottom:16px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:600;font-size:14px;margin-bottom:3px}
+.field .hint{color:var(--muted);font-size:12.5px;margin-bottom:5px}
+input[type=text],input[type=url],input[type=number],textarea{
+  width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+  font:inherit; font-size:15px; color:var(--text); background:#fff;
+}
+textarea{min-height:74px; resize:vertical}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+.triple{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media (max-width:560px){.triple{grid-template-columns:1fr}}
+
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{font:inherit;cursor:pointer;border-radius:8px}
+.btn{
+  padding:10px 18px;font-size:15px;font-weight:600;
+  border:1px solid var(--border);background:#f1f5f9;color:var(--text);
+}
+.btn:hover{background:#e2e8f0}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#1d4ed8}
+
+/* отчёт */
+#report .placeholder{color:var(--muted);font-size:15px;padding:28px 6px;text-align:center}
+.verdict{
+  display:flex;gap:16px;align-items:center;border-radius:10px;
+  padding:14px 18px;margin-bottom:16px;border:1px solid var(--border);
+}
+.verdict .score{font-size:34px;font-weight:700;white-space:nowrap}
+.verdict .score span{font-size:16px;color:var(--muted);font-weight:600}
+.verdict.good{background:var(--good-soft);border-color:#bbf7d0}
+.verdict.good .score{color:var(--good)}
+.verdict.mid{background:var(--warn-soft);border-color:#fde68a}
+.verdict.mid .score{color:var(--warn)}
+.verdict.bad{background:var(--bad-soft);border-color:#fecaca}
+.verdict.bad .score{color:var(--bad)}
+.verdict .v-title{font-weight:700;font-size:16px}
+.verdict .v-text{font-size:14px;color:#334155;margin-top:2px}
+
+.sec{font-size:15px;font-weight:700;margin:16px 0 8px}
+.sec .cnt{
+  display:inline-block;background:#f1f5f9;border:1px solid var(--border);
+  border-radius:10px;font-size:12px;padding:0 8px;vertical-align:2px;
+}
+.find{border-left:4px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:8px;background:#f8fafc}
+.find .f-title{font-weight:600;font-size:14.5px}
+.find .f-text{font-size:13.5px;color:#334155;margin-top:3px}
+.find.bad{border-color:var(--bad);background:var(--bad-soft)}
+.find.warn{border-color:var(--warn);background:var(--warn-soft)}
+.find.info{border-color:var(--info);background:var(--info-soft)}
+.find.good{border-color:var(--good);background:var(--good-soft)}
+
+.calc-note{font-size:13.5px;color:#334155;margin:6px 0}
+.calc-note.muted{color:var(--muted)}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
+.tbl th{background:#f1f5f9;text-align:left;padding:6px 9px;font-weight:600;border-bottom:2px solid var(--border)}
+.tbl td{padding:5px 9px;border-bottom:1px solid var(--border)}
+.tbl tr.hl td{background:var(--accent-soft);font-weight:600}
+.steps li{margin-bottom:5px;font-size:14px}
+.rep-actions{margin-top:16px}
+.btn.copied{background:var(--good);border-color:var(--good);color:#fff}
+
+footer{margin-top:26px;color:#64748b;font-size:13px;max-width:900px}
+footer a{color:#93c5fd}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>A/B-гипотеза: автоматическая проверка</h1>
+  <p class="sub">Студент вводит гипотезу по формуле «проблема → изменение → механизм → эффект» и ссылку на свой сайт —
+  и получает разбор по правилам курса: что хорошо, что исправить, сойдётся ли арифметика и хватит ли трафика.
+  Всё считается прямо в браузере, данные никуда не отправляются.</p>
+  <details class="rules">
+    <summary>Формула гипотезы и правила курса</summary>
+    <div class="rules-body">
+      <p><b>Формула:</b> из-за <b>проблемы</b> (боль + цифры из Метрики) мы делаем <b>изменение</b> (ровно один элемент).
+      Ожидаем, что сработает, потому что <b>механизм</b> (причинно-следственная связь), поэтому <b>эффект</b>:
+      основная метрика вырастет на конкретное число.</p>
+      <p><b>Одна гипотеза = одно изменение = одна основная метрика.</b> Решение принимается только по ней.
+      Остальные показатели — дополнительные (защитные): их смотрят, чтобы поймать побочные эффекты,
+      числовых целей им не задают.</p>
+      <p><b>MDE — одно число</b>, от него считается размер выборки. Диапазон «15–20%» берите по консервативной границе — 15%.
+      Прирост считайте от базы: 5% → 6% = +1 п.п. = +20%.</p>
+      <p><b>Срок теста</b> — целые недели, минимум 7 дней. Решение — один раз, в конце срока: «подглядывание»
+      резко повышает шанс ложной победы. Результат «данных не хватило» — честный профессиональный вывод.</p>
+    </div>
+  </details>
+</header>
+
+<div class="grid">
+
+  <!-- ФОРМА -->
+  <section class="card">
+    <h2>Гипотеза</h2>
+    <p class="lead">Заполните четыре части — каждая проверяется на свои правила.</p>
+
+    <div class="field">
+      <label for="f_name">Проект / имя (необязательно)</label>
+      <input type="text" id="f_name" placeholder="Магазин музыкальных инструментов, Анна">
+    </div>
+
+    <div class="field">
+      <label for="f_url">Ссылка на сайт</label>
+      <input type="url" id="f_url" placeholder="https://username.github.io/project/">
+    </div>
+
+    <div class="field">
+      <label for="f_problem">1. Проблема</label>
+      <div class="hint">Текущая боль + цифры из Яндекс Метрики (конверсия, отказы, глубина за 3–7 дней).</div>
+      <textarea id="f_problem" placeholder="Конверсия в добавление в корзину — 5%, отказы — 60%: на первом экране каталога только дорогие позиции…"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="f_change">2. Изменение</label>
+      <div class="hint">Ровно один элемент: что и где меняем. Одна гипотеза — одна вещь.</div>
+      <textarea id="f_change" placeholder="Меняем сортировку каталога по умолчанию на «от дешёвых к дорогим»"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="f_mech">3. Механизм</label>
+      <div class="hint">Почему это сработает: что меняется в восприятии или поведении посетителя. Без механизма это лотерейный билет.</div>
+      <textarea id="f_mech" placeholder="Бюджетные модели на первом экране снижают ценовой порог входа, поэтому…"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="f_effect">4. Ожидаемый эффект</label>
+      <div class="hint">Основная метрика + одно число (MDE). Остальные метрики — в защитные, без числовых целей.</div>
+      <textarea id="f_effect" placeholder="Конверсия в add_to_cart вырастет на 15%: с 5% до 5,75%"></textarea>
+    </div>
+
+    <div class="field">
+      <div class="triple">
+        <div>
+          <label for="f_p1">База, %</label>
+          <div class="hint">конверсия из Метрики</div>
+          <input type="number" id="f_p1" min="0" step="0.1" placeholder="7">
+        </div>
+        <div>
+          <label for="f_mde">MDE, %</label>
+          <div class="hint">ожидаемый прирост</div>
+          <input type="number" id="f_mde" min="0" step="1" placeholder="30">
+        </div>
+        <div>
+          <label for="f_vpd">Визитов в день</label>
+          <div class="hint">на сайт, суммарно</div>
+          <input type="number" id="f_vpd" min="0" step="1" placeholder="40">
+        </div>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button type="button" id="checkBtn" class="btn primary">Проверить гипотезу</button>
+      <button type="button" id="demoBtn" class="btn">Заполнить примером</button>
+      <button type="button" id="clearBtn" class="btn">Очистить</button>
+    </div>
+  </section>
+
+  <!-- ОТЧЁТ -->
+  <section class="card">
+    <h2>Разбор</h2>
+    <p class="lead">Оценка, ошибки, замечания и расчёт выборки появятся здесь после проверки.</p>
+    <div id="report" aria-live="polite">
+      <div class="placeholder">Заполните форму слева и нажмите<br><b>«Проверить гипотезу»</b></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Проверка идёт по правилам курса «Яндекс Метрика и A/B-тест»: формула гипотезы из 4 частей, одна основная метрика,
+  одно число вместо диапазона, сходимость арифметики «база × (1 + MDE)», расчёт выборки для z-теста (α = 5%, мощность 80%).
+  Страница работает офлайн и не отправляет данные на сервер — её можно свободно разместить на GitHub Pages.
+</footer>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var num = function(s){ var v = parseFloat(String(s).replace(',', '.')); return isFinite(v) ? v : null; };
+var fmt = function(v){ return (Math.round(v * 100) / 100).toString().replace('.', ','); };
+var th = function(n){ return n.toLocaleString('ru-RU'); };
+var visWord = function(n){
+  var m10 = n % 10, m100 = n % 100;
+  if(m10 === 1 && m100 !== 11) return 'визит';
+  if(m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'визита';
+  return 'визитов';
+};
+var STORE = 'ab-hypo-draft-v1';
+
+function sampleSize(p1, mdeRel){
+  var p2 = p1 * (1 + mdeRel);
+  var z = 2.8016; /* norm.ppf(0.975) + norm.ppf(0.8) */
+  return Math.ceil(z * z * (p1 * (1 - p1) + p2 * (1 - p2)) / ((p2 - p1) * (p2 - p1)));
+}
+
+function hasNum(s){
+  return /\d+(?:[.,]\d+)?\s*%/.test(s)
+    || /\d+(?:[.,]\d+)?\s*(?:п\.\s?п|процентн)/i.test(s)
+    || /\d+\s*(?:секунд|минут)/i.test(s);
+}
+
+function readForm(){
+  return {
+    name: $('f_name').value.trim(),
+    url: $('f_url').value.trim(),
+    problem: $('f_problem').value.trim(),
+    change: $('f_change').value.trim(),
+    mech: $('f_mech').value.trim(),
+    effect: $('f_effect').value.trim(),
+    p1: num($('f_p1').value),
+    mde: num($('f_mde').value),
+    vpd: num($('f_vpd').value)
+  };
+}
+
+function calcData(d){
+  if(!(d.p1 > 0) || !(d.mde > 0)) return null;
+  var p1 = d.p1 / 100;
+  var rows = [0.15, 0.30, 0.50].map(function(m){
+    var n = sampleSize(p1, m);
+    var r = { m: m, p2: p1 * (1 + m) * 100, n: n, days: null, weeks: null };
+    if(d.vpd > 0){ r.days = Math.ceil(2 * n / d.vpd); r.weeks = Math.ceil(r.days / 7); }
+    return r;
+  });
+  var chosenN = sampleSize(p1, d.mde / 100), chosenDays = null, chosenWeeks = null;
+  if(d.vpd > 0){ chosenDays = Math.ceil(2 * chosenN / d.vpd); chosenWeeks = Math.ceil(chosenDays / 7); }
+  return { p1: d.p1, mde: d.mde, rows: rows, chosenN: chosenN, chosenDays: chosenDays, chosenWeeks: chosenWeeks };
+}
+
+function analyze(d){
+  var f = [];
+  var add = function(level, title, text){ f.push({ level: level, title: title, text: text }); };
+
+  /* --- структура: 4 части --- */
+  var parts = [
+    ['Проблема', d.problem, 25],
+    ['Изменение', d.change, 15],
+    ['Механизм', d.mech, 25],
+    ['Ожидаемый эффект', d.effect, 15]
+  ];
+  var missing = parts.filter(function(p){ return !p[1]; }).map(function(p){ return p[0]; });
+  if(missing.length){
+    add('error', 'Не заполнены части гипотезы: ' + missing.join(', '),
+      'Гипотеза состоит из четырёх обязательных частей: проблема → изменение → механизм → эффект. '
+      + 'Без проблемы непонятно, зачем менять; без механизма это лотерейный билет; без измеримого эффекта нельзя посчитать выборку.');
+  } else {
+    add('ok', 'Все четыре части заполнены', 'Формула «проблема → изменение → механизм → эффект» соблюдена.');
+    parts.forEach(function(p){
+      if(p[1].length < p[2]){
+        add('warn', 'Часть «' + p[0] + '» очень короткая',
+          'Раскройте её в одном–трёх предложениях с конкретикой: слишком короткая формулировка обычно означает, что часть придумана формально.');
+      }
+    });
+  }
+
+  /* --- ссылка --- */
+  if(!d.url){
+    add('error', 'Не указана ссылка на сайт',
+      'Укажите адрес страницы, на которой пройдёт тест. Пример: https://username.github.io/project/');
+  } else {
+    var u = null;
+    try { u = new URL(d.url); } catch(e) {}
+    if(!u || u.hostname.indexOf('.') === -1){
+      add('error', 'Ссылка не похожа на адрес сайта', 'Нужен полный адрес с https://. Пример: https://username.github.io/project/');
+    } else if(u.protocol === 'http:'){
+      add('warn', 'Сайт открывается по http, а не по https',
+        'GitHub Pages и Varioqub работают по https. Проверьте, что счётчик Метрики и эксперимент настраиваются на защищённой версии адреса.');
+    } else {
+      add('ok', 'Ссылка на сайт в порядке', '');
+    }
+  }
+
+  /* --- проблема --- */
+  if(d.problem){
+    if(!/\d/.test(d.problem)){
+      add('warn', 'В проблеме нет ни одной цифры',
+        '«Мало добавляют в корзину» — это оценка на глаз. Выпишите из Яндекс Метрики базовые цифры за последние 3–7 дней: '
+        + 'конверсию в целевое действие, показатель отказов, глубину просмотра. Без базы вы не сможете ни рассчитать выборку, ни посчитать прирост.');
+    } else {
+      add('ok', 'Проблема подкреплена цифрами', 'Данные вместо ощущений — правильная основа для гипотезы.');
+    }
+    if(/(мне кажется|кажется|наверное|скорее всего|думаю|полагаю|по-моему|на мой взгляд|возможно)/i.test(d.problem)){
+      add('warn', 'Проблема сформулирована через ощущения',
+        'Слова вроде «кажется» и «наверное» выдают предположение. Замените их наблюдением из данных: «в отчёте „Конверсии“ за 7 дней — X%».');
+    }
+  }
+
+  /* --- изменение --- */
+  if(d.change){
+    var multiWord = /(также|плюс|заодно|кроме того|одновременно|вторым шагом)/i.test(d.change);
+    var andCount = (d.change.match(/\sи\s/g) || []).length;
+    if(multiWord || andCount >= 2){
+      add('warn', 'Похоже, меняется больше одного элемента',
+        'Главное правило: за один тест меняем только одну вещь. Если поменять и текст, и цвет, и размер — эффект нельзя будет '
+        + 'приписать конкретному изменению. Оставьте один элемент, остальное оформите как отдельные гипотезы.');
+    } else {
+      add('ok', 'Меняется один элемент', 'Эффект можно будет смело приписать именно этому изменению.');
+    }
+  }
+
+  /* --- механизм --- */
+  if(d.mech){
+    var causal = /(потому|поэтому|так как|благодаря|из-за|за счёт|за счет|снижает|повышает|уменьшает|увеличивает|приводит|порог|барьер|заметн|удобн|проще|страх|довери|якор|внимани|фокус|понятн)/i;
+    if(causal.test(d.mech)){
+      add('ok', 'Механизм объясняет причинно-следственную связь', '');
+    } else {
+      add('warn', 'В механизме не видно причинной связи',
+        'Объясните словами, почему изменение должно сработать: что оно меняет в восприятии или поведении посетителя. '
+        + 'Без механизма гипотеза — лотерейный билет: даже если повезёт, вы не поймёте, почему, и не сможете повторить успех.');
+    }
+  }
+
+  /* --- эффект --- */
+  var effectHasNumber = false;
+  if(d.effect){
+    if(!hasNum(d.effect)){
+      add('error', 'Эффект неизмерим',
+        'В эффекте должна быть конкретная метрика и число: «конверсия в lead_click вырастет на 15%». '
+        + 'Число (MDE) нужно, чтобы рассчитать размер выборки, а после теста — честно сказать, сбылось ли предположение.');
+    } else {
+      effectHasNumber = true;
+      if(!/(выраст|увелич|повыс|подним|сниз|уменьш|упад|падает|паден|сократ|выше|ниже|больше|меньше|дольше)/i.test(d.effect)){
+        add('warn', 'Не указано направление изменения',
+          'Добавьте глагол: «вырастет на 15%», «снизится на 10%». Число без направления не говорит, чего вы ждёте от теста.');
+      }
+      if(/\d+(?:[.,]\d+)?\s*[-–—]\s*\d+(?:[.,]\d+)?\s*(?:%|п\.)/.test(d.effect)){
+        add('warn', 'Диапазон вместо одного числа',
+          'MDE — это одно число, от него считается размер выборки. Возьмите консервативную границу диапазона (меньший эффект): «15–20%» → «15%».');
+      }
+      var numSegs = d.effect.split(/[.;!?\n]+/).map(function(s){ return s.trim(); }).filter(function(s){ return s && hasNum(s); });
+      if(numSegs.length >= 2){
+        add('warn', 'В эффекте несколько ожидаемых приростов',
+          'Одна гипотеза = одна основная метрика с одной числовой целью: по ней принимается решение. Остальные показатели переведите '
+          + 'в дополнительные (защитные) метрики — их смотрят, чтобы поймать побочные эффекты, но числовых целей им не задают.');
+      } else {
+        add('ok', 'Один измеримый эффект для одной метрики', '');
+      }
+    }
+  }
+
+  /* --- арифметика: база × (1 + MDE) --- */
+  if(d.effect && hasNum(d.effect)){
+    var mTarget = d.effect.match(/до\s*(\d+(?:[.,]\d+)?)\s*%/i);
+    var mBase = d.effect.match(/(?:^|[^а-яё])(?:с|была|было|текущая|сейчас)\s+(\d+(?:[.,]\d+)?)\s*%/i);
+    var base = (d.p1 > 0) ? d.p1 : (mBase ? num(mBase[1]) : null);
+    var target = mTarget ? num(mTarget[1]) : null;
+    if(base > 0 && target > 0){
+      var implied = (target / base - 1) * 100;
+      if(d.mde > 0){
+        var tol = Math.max(1, d.mde * 0.15);
+        if(Math.abs(implied - d.mde) > tol){
+          add('error', 'Арифметика не сходится',
+            'Заявлен прирост +' + fmt(d.mde) + '%, но из текста получается другое: база ' + fmt(base) + '% → цель ' + fmt(target)
+            + '% — это +' + fmt(implied) + '%. Целевое значение считается так: база × (1 + MDE/100) = ' + fmt(base) + ' × '
+            + fmt(1 + d.mde / 100) + ' ≈ ' + fmt(base * (1 + d.mde / 100)) + '%. Подставьте согласованные числа.');
+        } else {
+          add('ok', 'Целевые числа согласованы',
+            'База ' + fmt(base) + '% + ' + fmt(d.mde) + '% ≈ ' + fmt(base * (1 + d.mde / 100)) + '% — текст и расчёт совпадают.');
+        }
+      } else {
+        add('info', 'Посчитайте прирост от базы',
+          'Из текста выходит: ' + fmt(base) + '% → ' + fmt(target) + '% = +' + fmt(implied) + '%. '
+          + 'Зафиксируйте это число как MDE — оно понадобится для расчёта выборки.');
+      }
+    } else if(base > 0 && d.mde > 0 && !target){
+      add('info', 'Добавьте целевое значение в текст',
+        'При базе ' + fmt(base) + '% и приросте +' + fmt(d.mde) + '% целевая конверсия должна быть ≈ '
+        + fmt(base * (1 + d.mde / 100)) + '%. Укажите в эффекте и базу, и цель — так отчёт читается однозначно: «с 7% до 9,1%».');
+    }
+  }
+  if(!(d.p1 > 0) && effectHasNumber){
+    add('info', 'Зафиксируйте базовую конверсию',
+      'Возьмите её из отчёта «Конверсии» в Яндекс Метрике за последние 3–7 дней и запишите в дизайн теста. '
+      + 'С базой ниже можно рассчитать необходимый объём выборки.');
+  }
+
+  /* --- трафик и срок --- */
+  var c = calcData(d);
+  if(c){
+    if(c.chosenN > 5000){
+      add('warn', 'Такой MDE потребует слишком много трафика',
+        'При базе ' + fmt(c.p1) + '% и приросте +' + fmt(c.mde) + '% нужно ≈' + th(c.chosenN) + ' ' + visWord(c.chosenN) + ' на каждый вариант — '
+        + 'учебному сайту столько не набрать. Радикальные изменения дают больший эффект: заложите MDE +30–50% '
+        + 'или честно запланируйте вывод «данных не хватило».');
+    } else if(c.chosenN > 1500){
+      add('info', 'Объём выборки на грани достижимого',
+        'Нужно ≈' + th(c.chosenN) + ' ' + visWord(c.chosenN) + ' на вариант. Реально только при активном разгоне: обмен ссылками внутри группы, посты в соцсетях.');
+    } else {
+      add('ok', 'Объём выборки достижим',
+        'Нужно ≈' + th(c.chosenN) + ' ' + visWord(c.chosenN) + ' на вариант — при обмене трафиком внутри группы это реально.');
+    }
+    if(c.chosenWeeks != null){
+      if(c.chosenWeeks > 4){
+        add('warn', 'Тест продлится слишком долго',
+          '≈' + c.chosenDays + ' дней на сбор (' + (c.chosenWeeks * 7) + ' дней = ' + c.chosenWeeks + ' нед. после округления). '
+          + 'За такой срок накопится грязь: эффект новизны, сезонность. Поднимите MDE.');
+      } else {
+        add('ok', 'Срок теста реалистичный',
+          '≈' + c.chosenDays + ' дней на сбор → округляем до целых недель: ' + (c.chosenWeeks * 7) + ' дней. '
+          + 'Минимум 7 дней — чтобы перекрыть дни недели и эффект новизны.');
+      }
+    }
+  }
+
+  return f;
+}
+
+/* ---------- отрисовка ---------- */
+
+function section(title, cls, items){
+  if(!items.length) return '';
+  var h = '<h3 class="sec">' + title + ' <span class="cnt">' + items.length + '</span></h3>';
+  items.forEach(function(it){
+    h += '<div class="find ' + cls + '"><div class="f-title">' + esc(it.title) + '</div>'
+      + (it.text ? '<div class="f-text">' + esc(it.text) + '</div>' : '') + '</div>';
+  });
+  return h;
+}
+
+function calcHtml(c){
+  var h = '<h3 class="sec">📐 Расчёт выборки</h3>';
+  h += '<p class="calc-note">База <b>' + fmt(c.p1) + '%</b> · ваш MDE <b>+' + fmt(c.mde) + '%</b> → ожидаемая конверсия B ≈ <b>'
+    + fmt(c.p1 * (1 + c.mde / 100)) + '%</b>. Нужно <b>≈' + th(c.chosenN) + '</b> ' + visWord(c.chosenN) + ' на каждый вариант (деление 50/50, α = 5%, мощность 80%).'
+    + (c.chosenDays ? ' Срок: ≈' + c.chosenDays + ' дн. → округляем до ' + (c.chosenWeeks * 7) + ' дн. (' + c.chosenWeeks + ' нед.).' : '')
+    + '</p>';
+  h += '<table class="tbl"><tr><th>MDE</th><th>Конверсия B</th><th>Визитов на вариант</th>'
+    + (c.rows[0].days != null ? '<th>Дней на сбор</th>' : '') + '</tr>';
+  c.rows.forEach(function(r){
+    var chosen = Math.abs(r.m * 100 - c.mde) < 0.001;
+    h += '<tr' + (chosen ? ' class="hl"' : '') + '><td>+' + fmt(r.m * 100) + '%' + (chosen ? ' ← ваш' : '')
+      + '</td><td>' + fmt(r.p2) + '%</td><td>≈' + th(r.n) + '</td>'
+      + (r.days != null ? '<td>' + r.days + (r.weeks * 7 !== r.days ? ' → ' + r.weeks * 7 : '') + '</td>' : '') + '</tr>';
+  });
+  h += '</table>';
+  h += '<p class="calc-note muted">Чем меньше MDE, тем больше нужно трафика: эффект вдвое меньше — визитов примерно вчетверо больше. '
+    + 'Формула: n = z²·(p₁(1−p₁)+p₂(1−p₂)) / (p₂−p₁)², z = 2,80.</p>';
+  return h;
+}
+
+function nextStepsHtml(){
+  return '<h3 class="sec">После правок — дизайн теста</h3><ol class="steps">'
+    + '<li>Зафиксировать письменно основную метрику и её знаменатель (от посетителей каталога или от всех визитов).</li>'
+    + '<li>Снять базовую конверсию из Метрики за последние 3–7 дней.</li>'
+    + '<li>Рассчитать срок и округлить до целых недель — минимум 7 дней.</li>'
+    + '<li>Запустить эксперимент в Varioqub: деление 50/50, проверка в режиме инкогнито.</li>'
+    + '<li>Решение — один раз, в конце срока. Не подглядывать в данные раньше времени.</li>'
+    + '<li>Заполнить отчёт по шаблону из 7 полей и сохранить в репозиторий.</li></ol>';
+}
+
+var lastReport = null;
+
+function render(){
+  var d = readForm();
+  var findings = analyze(d);
+  var byLevel = function(l){ return findings.filter(function(x){ return x.level === l; }); };
+  var errors = byLevel('error'), warns = byLevel('warn'), infos = byLevel('info'), oks = byLevel('ok');
+  var score = Math.max(5, 100 - 25 * errors.length - 10 * warns.length);
+
+  var vClass, vTitle, vText;
+  if(errors.length === 0 && warns.length === 0){
+    vClass = 'good'; vTitle = 'Гипотеза готова к запуску';
+    vText = 'Сформулирована по всем правилам курса. Дальше — зафиксировать дизайн (метрика, знаменатель, срок), запускать в Varioqub и не подглядывать в данные до конца срока.';
+  } else if(errors.length === 0){
+    vClass = 'mid'; vTitle = 'Хорошая основа, но есть замечания';
+    vText = 'Структурных ошибок нет. Устраните жёлтые пункты — с ними расчёт выборки и итоговый вывод будут шаткими.';
+  } else {
+    vClass = 'bad'; vTitle = 'Гипотезу нужно доработать';
+    vText = 'Сначала исправьте красные пункты — без них результат теста нельзя будет интерпретировать.';
+  }
+
+  var c = calcData(d);
+  var html = '<div class="verdict ' + vClass + '"><div class="score">' + score + '<span>/100</span></div>'
+    + '<div><div class="v-title">' + vTitle + '</div><div class="v-text">' + vText + '</div></div></div>';
+  html += section('❌ Исправить', 'bad', errors);
+  html += section('⚠️ Замечания', 'warn', warns);
+  html += section('ℹ️ Принять во внимание', 'info', infos);
+  html += section('✅ Что уже хорошо', 'good', oks);
+  if(c) html += calcHtml(c);
+  html += nextStepsHtml();
+  html += '<div class="rep-actions"><button type="button" id="copyBtn" class="btn">Скопировать отчёт (Markdown)</button></div>';
+
+  $('report').innerHTML = html;
+  lastReport = buildMarkdown(d, findings, score, vTitle, c);
+  $('copyBtn').addEventListener('click', copyReport);
+}
+
+function buildMarkdown(d, findings, score, vTitle, c){
+  var L = [];
+  L.push('# Проверка гипотезы A/B-теста');
+  L.push('');
+  L.push('- Дата: ' + new Date().toLocaleDateString('ru-RU'));
+  if(d.name) L.push('- Проект: ' + d.name);
+  if(d.url) L.push('- Сайт: ' + d.url);
+  L.push('- Оценка: ' + score + '/100 — ' + vTitle);
+  L.push('');
+  var grp = function(title, level, icon){
+    var items = findings.filter(function(x){ return x.level === level; });
+    if(!items.length) return;
+    L.push('## ' + icon + ' ' + title);
+    items.forEach(function(x){ L.push('- **' + x.title + '.** ' + x.text); });
+    L.push('');
+  };
+  grp('Исправить', 'error', '❌');
+  grp('Замечания', 'warn', '⚠️');
+  grp('Принять во внимание', 'info', 'ℹ️');
+  grp('Что уже хорошо', 'ok', '✅');
+  if(c){
+    L.push('## 📐 Расчёт выборки');
+    L.push('База ' + fmt(c.p1) + '%, MDE +' + fmt(c.mde) + '% → конверсия B ≈ ' + fmt(c.p1 * (1 + c.mde / 100))
+      + '%. На вариант нужно ≈' + th(c.chosenN) + ' ' + visWord(c.chosenN)
+      + (c.chosenDays ? ', срок ≈ ' + (c.chosenWeeks * 7) + ' дней' : '') + '. (α = 5%, мощность 80%)');
+    L.push('');
+    L.push('| MDE | Конверсия B | Визитов на вариант |');
+    L.push('|---|---|---|');
+    c.rows.forEach(function(r){
+      L.push('| +' + fmt(r.m * 100) + '% | ' + fmt(r.p2) + '% | ≈' + th(r.n) + ' |');
+    });
+    L.push('');
+  }
+  L.push('## Дальнейшие шаги');
+  L.push('1. Зафиксировать основную метрику и знаменатель письменно.');
+  L.push('2. Снять базовую конверсию из Метрики (3–7 дней).');
+  L.push('3. Рассчитать срок, округлить до целых недель (минимум 7 дней).');
+  L.push('4. Запустить эксперимент в Varioqub, деление 50/50, проверить в инкогнито.');
+  L.push('5. Решение — один раз, в конце срока. Не подглядывать.');
+  L.push('6. Заполнить отчёт по шаблону из 7 полей.');
+  return L.join('\n');
+}
+
+function flashCopied(){
+  var b = $('copyBtn');
+  if(!b) return;
+  b.textContent = 'Скопировано ✓';
+  b.classList.add('copied');
+  setTimeout(function(){ b.textContent = 'Скопировать отчёт (Markdown)'; b.classList.remove('copied'); }, 2500);
+}
+
+function copyReport(){
+  if(!lastReport) return;
+  var fallback = function(){
+    var ta = document.createElement('textarea');
+    ta.value = lastReport;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flashCopied(); } catch(e) {}
+    document.body.removeChild(ta);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(lastReport).then(flashCopied, fallback);
+  } else fallback();
+}
+
+/* ---------- черновик в localStorage ---------- */
+
+function save(){
+  try {
+    var d = {};
+    FIELDS.forEach(function(id){ d[id] = $(id).value; });
+    localStorage.setItem(STORE, JSON.stringify(d));
+  } catch(e) {}
+}
+function load(){
+  try {
+    var raw = localStorage.getItem(STORE);
+    if(!raw) return;
+    var d = JSON.parse(raw);
+    FIELDS.forEach(function(id){ if(typeof d[id] === 'string') $(id).value = d[id]; });
+  } catch(e) {}
+}
+
+var FIELDS = ['f_name','f_url','f_problem','f_change','f_mech','f_effect','f_p1','f_mde','f_vpd'];
+
+function clearAll(){
+  FIELDS.forEach(function(id){ $(id).value = ''; });
+  try { localStorage.removeItem(STORE); } catch(e) {}
+  $('report').innerHTML = '<div class="placeholder">Заполните форму слева и нажмите<br><b>«Проверить гипотезу»</b></div>';
+  lastReport = null;
+}
+
+function demo(){
+  $('f_name').value = 'Магазин музыкальных инструментов (пример)';
+  $('f_url').value = 'https://amarkovec165-byte.github.io/musicshop/';
+  $('f_problem').value = 'Пользователи мало добавляют товары в корзину и быстро покидают сайт: сортировка «По умолчанию» выводит в начало каталога дорогие позиции и создаёт впечатление, что доступных вариантов нет.';
+  $('f_change').value = 'Меняем сортировку каталога по умолчанию на «от дешёвых к дорогим».';
+  $('f_mech').value = 'Дешёвые товары на первом экране снижают ценовой порог входа: посетитель сразу видит, что может позволить себе покупку, и уходит изучать ассортимент глубже, вместо того чтобы закрыть сайт.';
+  $('f_effect').value = 'Конверсия в добавление в корзину вырастет на 15–20% и составит 8–10% от всех посетителей каталога. Средняя глубина просмотра вырастет на 15%. Среднее время на сайте увеличится на 20–25 секунд. Показатель отказов снизится на 10–15%.';
+  $('f_p1').value = '7';
+  $('f_mde').value = '15';
+  $('f_vpd').value = '40';
+  save();
+  render();
+}
+
+/* ---------- инициализация ---------- */
+$('checkBtn').addEventListener('click', render);
+$('demoBtn').addEventListener('click', demo);
+$('clearBtn').addEventListener('click', clearAll);
+document.querySelectorAll('input, textarea').forEach(function(el){ el.addEventListener('input', save); });
+load();
+})();
+</script>
+</body>
+</html>
